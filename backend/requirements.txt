@@ -1,0 +1,25 @@
+# API 框架
+fastapi==0.109.2
+uvicorn==0.27.1
+python-multipart==0.0.9
+sse-starlette==1.8.2
+
+# 环境变量
+python-dotenv==1.0.1
+
+# OpenAI
+openai==1.65.2
+
+# 语音处理
+edge-tts==6.1.9
+dashscope==1.14.0
+
+# 文件处理
+aiofiles==23.2.1
+
+# HTTP 客户端
+requests==2.31.0
+httpx>=0.24.1
+
+# 工具包
+pydantic==2.6.1
