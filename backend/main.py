@@ -3,7 +3,6 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-import whisper
 import edge_tts
 import asyncio
 import tempfile
@@ -18,6 +17,7 @@ from text2voice import TextToVoice, voice_map
 import shutil
 import wave
 import time
+from stt import STT  # 导入新的STT类
 
 model_map = {
     "DeepSeek-V3": "deepseek-ai/DeepSeek-V3",
@@ -28,7 +28,8 @@ model_map = {
 
 load_dotenv()
 
-whisper_model = whisper.load_model("base")
+# 初始化STT模型，替换原来的whisper模型
+stt_model = STT()
 # 全局配置
 # 可选值: "edge_tts" 或 "fish_speech"
 TTS_SERVICE = os.environ.get("TTS_SERVICE", "edge_tts")
@@ -381,7 +382,8 @@ async def process_audio_request(
         # 使用辅助函数处理音频文件
         temp_audio_path = await process_audio_file(audio)
 
-        result = whisper_model.transcribe(temp_audio_path)
+        # 使用新的STT类进行语音识别，替换原来的whisper直接调用
+        result = stt_model.transcribe(temp_audio_path)
 
         # 检查返回的结果
         if not result or "text" not in result:
