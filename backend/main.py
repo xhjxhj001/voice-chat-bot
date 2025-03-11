@@ -228,7 +228,7 @@ async def generate_response_stream(
                         yield {
                             "event": "message",
                             "data": json.dumps(
-                                {"type": "text", "content": "#### 思考中..."}
+                                {"type": "text", "content": "#### 思考中... \n"}
                             ),
                         }
                     print(
