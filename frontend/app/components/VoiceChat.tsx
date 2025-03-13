@@ -8,6 +8,7 @@ interface Message {
     type: 'user' | 'assistant';
     content: string;
     timestamp: Date;
+    audioData?: string; // 添加音频Base64数据字段
 }
 
 interface ChatMessage {
@@ -662,6 +663,15 @@ export default function VoiceChat() {
         } else if (data.type === 'audio') {
             // 处理音频回复
             playAudioResponse(data.content);
+
+            // 保存音频数据到最近的助手消息中
+            setMessages(prev => {
+                const newMessages = [...prev];
+                if (newMessages.length > 0 && newMessages[newMessages.length - 1].type === 'assistant') {
+                    newMessages[newMessages.length - 1].audioData = data.content;
+                }
+                return newMessages;
+            });
         }
 
         return {
@@ -678,7 +688,10 @@ export default function VoiceChat() {
             // 标记这是文本输入而非语音输入
             const isTextInput = url.includes('/api/chat/stream');
 
-            const response = await fetch(`${getApiBaseUrl()}${url}`, {
+            // 构建正确的URL，如果url已经是完整URL则直接使用，否则与基础URL拼接
+            const requestUrl = url.startsWith('http') ? url : `${getApiBaseUrl()}${url}`;
+
+            const response = await fetch(requestUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -785,31 +798,39 @@ export default function VoiceChat() {
         }
     };
 
-    // 使用构建的请求参数对象来简化表单提交
-    const handleTextSubmit = async (e: React.FormEvent) => {
+    // 修改 handleTextSubmit 函数，添加重放和重生成功能
+    const handleTextSubmit = async (e: React.FormEvent, overrideText?: string, isReplay: boolean = false) => {
         e.preventDefault();
-        if (!inputText.trim()) return;
+        const text = overrideText || inputText.trim();
+        if (!text || isLoading) return;
 
+        // 如果不是重放模式，才清空输入框和添加新消息
+        if (!isReplay) {
+            setInputText('');
+            setMessages(prev => [
+                ...prev,
+                {
+                    type: 'user',
+                    content: text,
+                    timestamp: new Date()
+                }
+            ]);
+        }
+
+        // 构建请求并发送
         try {
             setIsLoading(true);
-
-            // 添加用户消息到历史
-            setMessages(prev => [...prev, {
-                type: 'user',
-                content: inputText,
-                timestamp: new Date()
-            }]);
-
-            // 清空输入框
-            setInputText('');
-
-            // 使用buildRequestParams构建请求体
-            const requestParams = buildRequestParams(inputText, selectedVoice);
-
-            await handleStreamResponse('/api/chat/stream', requestParams);
+            const requestParams = buildRequestParams(text, selectedVoice);
+            await handleStreamResponse(
+                `${getApiBaseUrl()}/api/chat/stream`,
+                requestParams
+            );
             scrollToBottom();
         } catch (error) {
-            console.error('Error sending text to server:', error);
+            console.error('发送文本失败:', error);
+            alert('发送失败，请重试');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -942,6 +963,15 @@ export default function VoiceChat() {
                             } else if (data.type === 'audio') {
                                 console.log('收到音频数据，长度:', data.content.length);
                                 await playAudioResponse(data.content);
+
+                                // 保存音频数据到最近的助手消息中
+                                setMessages(prev => {
+                                    const newMessages = [...prev];
+                                    if (newMessages.length > 0 && newMessages[newMessages.length - 1].type === 'assistant') {
+                                        newMessages[newMessages.length - 1].audioData = data.content;
+                                    }
+                                    return newMessages;
+                                });
                             }
                         } catch (error) {
                             console.error('解析SSE数据时出错:', error, '原始数据:', line);
@@ -1201,6 +1231,58 @@ export default function VoiceChat() {
                                             <div className="markdown-content">
                                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                                             </div>
+
+                                            {/* 助手回复的操作按钮 */}
+                                            {message.type === 'assistant' && (
+                                                <div className="flex justify-end mt-2 space-x-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            // 直接播放存储的音频数据
+                                                            if (message.audioData) {
+                                                                playAudioResponse(message.audioData);
+                                                            } else {
+                                                                // 如果消息没有存储音频数据（兼容旧消息），则重新生成
+                                                                const assistantIndex = messages.findIndex(m => m === message);
+                                                                if (assistantIndex > 0 && messages[assistantIndex - 1].type === 'user') {
+                                                                    // 重新发送用户的问题来播放音频回复
+                                                                    handleTextSubmit(new Event('submit') as any, messages[assistantIndex - 1].content, true);
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="text-xs flex items-center bg-blue-100 hover:bg-blue-200 text-blue-600 px-2 py-1 rounded-md transition-colors duration-200"
+                                                        title="播放音频回复"
+                                                        disabled={isLoading}
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        播放
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            // 重新生成这个回复
+                                                            const assistantIndex = messages.findIndex(m => m === message);
+                                                            if (assistantIndex > 0 && messages[assistantIndex - 1].type === 'user') {
+                                                                // 移除当前的助手回复
+                                                                const newMessages = [...messages];
+                                                                newMessages.splice(assistantIndex, 1);
+                                                                setMessages(newMessages);
+                                                                // 重新发送用户的问题来生成新回复
+                                                                handleTextSubmit(new Event('submit') as any, messages[assistantIndex - 1].content);
+                                                            }
+                                                        }}
+                                                        className="text-xs flex items-center bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded-md transition-colors duration-200"
+                                                        title="重新生成回复"
+                                                        disabled={isLoading}
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                        </svg>
+                                                        重新生成
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))
