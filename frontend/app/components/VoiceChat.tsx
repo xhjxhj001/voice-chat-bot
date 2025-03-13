@@ -97,6 +97,7 @@ export default function VoiceChat() {
         { label: 'DeepSeek-R1', value: 'DeepSeek-R1' },
         { label: 'Qwen2.5-7B', value: 'Qwen2.5-7B' },
         { label: 'Qwen2.5-72B', value: 'Qwen2.5-72B' },
+        { label: 'Qwen2.5-32B', value: 'Qwen2.5-32B' },
     ];
 
     // 添加检查用户交互状态的变量

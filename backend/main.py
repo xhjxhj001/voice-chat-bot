@@ -24,6 +24,7 @@ model_map = {
     "DeepSeek-R1": "deepseek-ai/DeepSeek-R1",
     "Qwen2.5-7B": "Qwen/Qwen2.5-7B-Instruct",
     "Qwen2.5-72B": "Qwen/Qwen2.5-72B-Instruct",
+    "Qwen/QwQ-32B": "Qwen/QwQ-32B",
 }
 
 load_dotenv()
