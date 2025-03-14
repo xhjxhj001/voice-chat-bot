@@ -22,6 +22,9 @@ interface Conversation {
     title: string;
     messages: Message[];
     systemPrompt?: string;
+    selectedModel?: string;  // 添加模型选择
+    selectedVoice?: string;  // 添加音色选择
+    enableVoiceResponse?: boolean;  // 是否启用语音回复
     createdAt: Date;
     updatedAt: Date;
 }
@@ -177,6 +180,19 @@ export default function VoiceChat() {
                     if (latestConversation.systemPrompt) {
                         setSystemPrompt(latestConversation.systemPrompt);
                     }
+
+                    // 加载模型和音色设置
+                    if (latestConversation.selectedModel) {
+                        setSelectedModel(latestConversation.selectedModel);
+                    }
+
+                    if (latestConversation.selectedVoice !== undefined) {
+                        setSelectedVoice(latestConversation.selectedVoice);
+                    }
+
+                    if (latestConversation.enableVoiceResponse !== undefined) {
+                        setEnableVoiceResponse(latestConversation.enableVoiceResponse);
+                    }
                 } else {
                     // 如果localStorage中没有对话，创建新对话
                     createNewConversation();
@@ -200,6 +216,9 @@ export default function VoiceChat() {
                         ...conv,
                         messages,
                         systemPrompt,
+                        selectedModel,
+                        selectedVoice,
+                        enableVoiceResponse,
                         updatedAt: new Date(),
                         title: getConversationTitle(messages)
                     }
@@ -230,6 +249,9 @@ export default function VoiceChat() {
             title: '新对话',
             messages: [],
             systemPrompt: systemPrompt,
+            selectedModel: selectedModel,
+            selectedVoice: selectedVoice,
+            enableVoiceResponse: enableVoiceResponse,
             createdAt: new Date(),
             updatedAt: new Date()
         };
@@ -249,8 +271,23 @@ export default function VoiceChat() {
         if (targetConversation) {
             setActiveConversationId(conversationId);
             setMessages(targetConversation.messages);
+
+            // 更新系统提示词
             if (targetConversation.systemPrompt) {
                 setSystemPrompt(targetConversation.systemPrompt);
+            }
+
+            // 更新模型和音色设置
+            if (targetConversation.selectedModel) {
+                setSelectedModel(targetConversation.selectedModel);
+            }
+
+            if (targetConversation.selectedVoice !== undefined) {
+                setSelectedVoice(targetConversation.selectedVoice);
+            }
+
+            if (targetConversation.enableVoiceResponse !== undefined) {
+                setEnableVoiceResponse(targetConversation.enableVoiceResponse);
             }
 
             // 关闭对话面板
@@ -1032,18 +1069,33 @@ export default function VoiceChat() {
     const toggleVoiceResponse = (enable: boolean) => {
         setEnableVoiceResponse(enable);
         saveSettings(enable, selectedVoice, selectedModel);
+
+        // 如果有活跃对话，同步更新设置
+        if (activeConversationId) {
+            saveActiveConversation();
+        }
     };
 
     // 更新音色设置
     const changeVoice = (voice: string) => {
         setSelectedVoice(voice);
         saveSettings(enableVoiceResponse, voice, selectedModel);
+
+        // 如果有活跃对话，同步更新设置
+        if (activeConversationId) {
+            saveActiveConversation();
+        }
     };
 
     // 更新模型选择
     const changeModel = (model: string) => {
         setSelectedModel(model);
         saveSettings(enableVoiceResponse, selectedVoice, model);
+
+        // 如果有活跃对话，同步更新设置
+        if (activeConversationId) {
+            saveActiveConversation();
+        }
     };
 
     return (
